@@ -1,0 +1,582 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e1a;--surface:#111827;--surface2:#1a2235;--surface3:#212d42;
+  --border:#2a3a55;--border2:#3a4f70;
+  --text:#e8edf5;--text2:#8fa3c0;--text3:#566880;
+  --green:#22c55e;--green-bg:#052210;--green-b:#134d25;
+  --orange:#f59e0b;--orange-bg:#1a1005;--orange-b:#4a2d00;
+  --red:#ef4444;--red-bg:#1a0505;--red-b:#4d1010;
+  --blue:#3b82f6;--blue-bg:#071225;--blue-b:#1a3a6e;
+  --purple:#a78bfa;--accent:#4f8ef7;
+  --font-head:'Rajdhani',sans-serif;--font-body:'Inter',sans-serif;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:14px;min-height:100vh}
+.app{max-width:1400px;margin:0 auto;padding:12px}
+
+/* ── PASSWORD MODAL ── */
+.pw-overlay{position:fixed;inset:0;background:#000a;backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:1000}
+.pw-box{background:var(--surface);border:1px solid var(--border2);border-radius:16px;padding:28px 32px;width:340px;text-align:center}
+.pw-icon{width:52px;height:52px;background:linear-gradient(135deg,#4f8ef7,#7c3aed);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 14px}
+.pw-title{font-family:var(--font-head);font-size:20px;font-weight:700;margin-bottom:4px}
+.pw-sub{font-size:12px;color:var(--text3);margin-bottom:18px}
+.pw-input-wrap{position:relative;margin-bottom:10px}
+.pw-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 40px 10px 14px;font-size:14px;font-family:var(--font-body);outline:none}
+.pw-input:focus{border-color:var(--accent)}
+.pw-input.error{border-color:var(--red)}
+.pw-eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--text3);font-size:16px;background:none;border:none}
+.pw-btn{width:100%;background:linear-gradient(135deg,#4f8ef7,#7c3aed);border:none;color:#fff;padding:10px;border-radius:8px;font-size:14px;cursor:pointer;margin-top:4px}
+.pw-btn:hover{opacity:0.9}
+.pw-error{font-size:11px;color:var(--red);margin-top:6px;display:none}
+.pw-error.show{display:block}
+
+/* ── UPLOAD LOCK ── */
+.upload-btn{background:linear-gradient(135deg,#4f8ef7,#7c3aed);border:none;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.upload-btn.locked{background:var(--surface2);border:1px solid var(--border);color:var(--text3);cursor:not-allowed;opacity:0.7}
+.lock-badge{font-size:10px;padding:2px 7px;border-radius:4px;margin-left:6px}
+.badge-admin{background:#1a3a6e;color:#60a5fa}
+.badge-view{background:var(--surface3);color:var(--text3);border:1px solid var(--border)}
+.logout-btn{background:var(--red-bg);border:1px solid var(--red-b);color:var(--red);padding:6px 10px;border-radius:6px;font-size:11px;cursor:pointer}
+
+.header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:12px;flex-wrap:wrap;gap:10px}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,#4f8ef7,#a78bfa);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-weight:700;font-size:16px;color:#fff}
+.logo-text{font-family:var(--font-head);font-size:20px;font-weight:700;letter-spacing:1px}
+.logo-sub{font-size:11px;color:var(--text3)}
+.header-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sync-status{display:flex;align-items:center;gap:6px;font-size:11px;padding:5px 10px;border-radius:6px;border:1px solid var(--border)}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.sync-dot.loading{background:var(--orange);animation:pulse 1s infinite}
+.sync-dot.error{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.last-updated{font-size:11px;color:var(--text3);text-align:right;line-height:1.6}
+.refresh-btn{background:var(--surface2);border:1px solid var(--border2);color:var(--text2);padding:8px 12px;border-radius:8px;font-size:13px;cursor:pointer}
+#file-input{display:none}
+
+.upload-progress{background:var(--surface);border:1px solid var(--blue-b);border-radius:10px;padding:12px 16px;margin-bottom:12px;display:none}
+.progress-title{font-size:13px;color:var(--accent);margin-bottom:8px}
+.progress-bar-wrap{background:var(--surface2);border-radius:4px;height:6px;overflow:hidden}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg,#4f8ef7,#7c3aed);border-radius:4px;transition:width 0.3s;width:0%}
+.progress-msg{font-size:11px;color:var(--text3);margin-top:6px}
+
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:12px}
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.metric-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px}
+.metric-value{font-family:var(--font-head);font-size:24px;font-weight:700;line-height:1}
+.metric-value.green{color:var(--green)}.metric-value.orange{color:var(--orange)}.metric-value.red{color:var(--red)}.metric-value.blue{color:var(--accent)}.metric-value.purple{color:var(--purple)}
+
+.alerts-panel{background:var(--surface);border:1px solid var(--orange-b);border-radius:10px;margin-bottom:12px;overflow:hidden}
+.alerts-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--orange-bg);cursor:pointer}
+.alerts-header h3{font-family:var(--font-head);font-size:15px;font-weight:600;color:var(--orange);display:flex;align-items:center;gap:6px}
+.alerts-body{padding:10px 14px;max-height:220px;overflow-y:auto}
+.alert-table{width:100%;border-collapse:collapse;font-size:12px}
+.alert-table th{color:var(--text3);font-weight:500;padding:5px 8px;text-align:left;border-bottom:1px solid var(--border)}
+.alert-table td{padding:5px 8px;border-bottom:1px solid var(--border);color:var(--text2)}
+.alert-table tr:hover td{background:var(--surface2)}
+.badge-loc{font-size:10px;padding:2px 6px;border-radius:4px;font-weight:600}
+.badge-mb{background:#1a2a4a;color:#60a5fa}.badge-rr{background:#1a3a2a;color:#4ade80}.badge-gd{background:#2a1a3a;color:#c084fc}
+.alert-type{font-size:10px;padding:2px 6px;border-radius:4px}
+.at-imbalance{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-b)}
+.at-winter{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-b)}
+.chevron{transition:transform 0.2s;color:var(--text3)}.chevron.open{transform:rotate(180deg)}
+
+.tabs{display:flex;gap:4px;margin-bottom:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;overflow-x:auto}
+.tab{flex:1;min-width:fit-content;padding:7px 14px;border-radius:7px;border:none;background:transparent;color:var(--text3);font-family:var(--font-body);font-size:13px;cursor:pointer;white-space:nowrap;transition:all 0.2s}
+.tab.active{background:var(--surface3);color:var(--text);border:1px solid var(--border2)}
+
+.filters{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.filters-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:8px;align-items:end}
+@media(max-width:750px){.filters-row{grid-template-columns:1fr 1fr}}
+.filter-group label{display:block;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px}
+.filter-group input,.filter-group select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:7px 10px;font-family:var(--font-body);font-size:13px}
+.filter-group select option{background:var(--surface2)}
+.filter-group input::placeholder{color:var(--text3)}
+.filters-bottom{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+.clear-btn{background:var(--surface3);border:1px solid var(--border2);color:var(--text2);padding:7px 14px;border-radius:6px;font-size:12px;cursor:pointer}
+.result-count{font-size:12px;color:var(--text3)}.result-count b{color:var(--accent)}
+
+.panels-container{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+@media(max-width:900px){.panels-container{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.panel-header{padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.panel-title{font-family:var(--font-head);font-size:16px;font-weight:700;letter-spacing:0.5px}
+.panel-gd .panel-header{background:linear-gradient(90deg,#1a0f2e,var(--surface));border-bottom-color:#3a2a5a}
+.panel-gd .panel-title{color:#c084fc}
+.panel-mb .panel-header{background:linear-gradient(90deg,#071a35,var(--surface));border-bottom-color:#1a3a6e}
+.panel-mb .panel-title{color:#60a5fa}
+.panel-rr .panel-header{background:linear-gradient(90deg,#071a15,var(--surface));border-bottom-color:#134d25}
+.panel-rr .panel-title{color:#4ade80}
+.ps{font-size:11px;color:var(--text3)}.ps span{color:var(--text2);font-weight:600}
+.panel-body{max-height:420px;overflow-y:auto;padding:6px}
+.stock-item{display:grid;grid-template-columns:1fr auto;gap:4px;align-items:start;padding:7px 8px;border-radius:6px;border-bottom:1px solid var(--border)}
+.stock-item:hover{background:var(--surface2)}.stock-item:last-child{border-bottom:none}
+.si-name{font-size:12px;font-weight:500;color:var(--text);line-height:1.3}
+.si-barcode{font-size:10px;color:var(--text3);font-family:monospace;margin-top:1px}
+.si-meta{font-size:10px;color:var(--text3);margin-top:2px}
+.si-right{text-align:right}
+.si-qty{font-family:var(--font-head);font-size:18px;font-weight:700;line-height:1}
+.si-mrp{font-size:10px;color:var(--text3)}
+.status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px}
+.dot-green{background:var(--green)}.dot-orange{background:var(--orange)}.dot-red{background:var(--red)}
+.si-qty.green{color:var(--green)}.si-qty.orange{color:var(--orange)}.si-qty.red{color:var(--red)}
+.hl{background:#4f8ef730;color:var(--accent);border-radius:2px;padding:0 1px}
+
+.cat-table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:12px}
+.cat-table-header{padding:10px 16px;border-bottom:1px solid var(--border);font-family:var(--font-head);font-size:15px;font-weight:600;color:var(--text);background:var(--surface2)}
+.cat-table{width:100%;border-collapse:collapse;font-size:12px}
+.cat-table th{color:var(--text3);font-weight:500;padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);font-size:11px;text-transform:uppercase;letter-spacing:0.5px}
+.cat-table td{padding:8px 12px;border-bottom:1px solid var(--border);color:var(--text2)}
+.cat-table tbody tr:hover td{background:var(--surface2);cursor:pointer}
+.cat-name{font-weight:600;color:var(--text);font-family:var(--font-head);font-size:13px}
+.sub-table{width:100%;font-size:11px;padding:6px 0}
+.sub-table th{color:var(--text3);padding:3px 8px;font-weight:500}
+.sub-table td{color:var(--text2);padding:3px 8px}
+
+.history-panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.history-panel h4{font-family:var(--font-head);font-size:14px;color:var(--text2);margin-bottom:8px}
+.hist-item{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:11px}
+.hist-item:last-child{border-bottom:none}
+.hist-name{color:var(--accent)}.hist-time{color:var(--text3)}
+.empty{text-align:center;padding:30px;color:var(--text3);font-size:12px}
+.loading-spinner{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+</style>
+</head>
+<body>
+
+<!-- PASSWORD MODAL -->
+<div class="pw-overlay" id="pw-modal">
+  <div class="pw-box">
+    <div class="pw-icon">🔐</div>
+    <div class="pw-title">Report Upload</div>
+    <div class="pw-sub">Upload karne ke liye admin password daalo</div>
+    <div class="pw-input-wrap">
+      <input class="pw-input" type="password" id="pw-input" placeholder="Password daalo..." onkeydown="if(event.key==='Enter')checkPw()">
+      <button class="pw-eye" id="pw-eye" onclick="togglePwEye()">👁</button>
+    </div>
+    <div class="pw-error" id="pw-error">❌ Galat password! Dobara try karo.</div>
+    <button class="pw-btn" onclick="checkPw()">Unlock karein 🔓</button>
+    <div style="margin-top:12px">
+      <button onclick="closePwModal()" style="background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="app" id="root">
+  <div style="text-align:center;padding:60px 20px">
+    <div class="loading-spinner"></div>
+    <div style="color:var(--text3);font-size:13px">Google Sheet se live data aa raha hai...</div>
+  </div>
+</div>
+
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzS90Hd8z8h_Uy2KgM0GU-geAX6Asm91bM46FVN9PqED3cEDmwYlDjh0O7jibHtld-a/exec';
+
+// ── CHANGE PASSWORD HERE ──
+const ADMIN_PASSWORD = 'KG@2024';
+// ─────────────────────────
+
+let allData=[];
+let uploadHistory=[];
+let alertsOpen=true;
+let catExpanded={};
+let activeTab='dashboard';
+let filters={barcode:'',name:'',category:'',size:''};
+let syncStatus='loading';
+let lastSyncTime='';
+let lastFileName='';
+let isAdminUnlocked=false;
+
+// Password modal
+document.getElementById('pw-modal').style.display='none';
+
+function showPwModal(){
+  document.getElementById('pw-modal').style.display='flex';
+  document.getElementById('pw-input').value='';
+  document.getElementById('pw-error').classList.remove('show');
+  setTimeout(()=>document.getElementById('pw-input').focus(),100);
+}
+function closePwModal(){
+  document.getElementById('pw-modal').style.display='none';
+}
+function togglePwEye(){
+  const inp=document.getElementById('pw-input');
+  const eye=document.getElementById('pw-eye');
+  if(inp.type==='password'){inp.type='text';eye.textContent='🙈';}
+  else{inp.type='password';eye.textContent='👁';}
+}
+function checkPw(){
+  const val=document.getElementById('pw-input').value;
+  const inp=document.getElementById('pw-input');
+  if(val===ADMIN_PASSWORD){
+    isAdminUnlocked=true;
+    closePwModal();
+    renderApp();
+    // trigger file input
+    setTimeout(()=>{
+      const fi=document.getElementById('file-input');
+      if(fi) fi.click();
+    },200);
+  } else {
+    inp.classList.add('error');
+    document.getElementById('pw-error').classList.add('show');
+    setTimeout(()=>inp.classList.remove('error'),1000);
+  }
+}
+function lockAdmin(){
+  isAdminUnlocked=false;
+  renderApp();
+}
+
+function uploadBtnClick(){
+  if(isAdminUnlocked){
+    document.getElementById('file-input').click();
+  } else {
+    showPwModal();
+  }
+}
+
+// ── Local history ──
+function loadLocalHistory(){try{const h=localStorage.getItem('kg_hist_v2');if(h)uploadHistory=JSON.parse(h);}catch(e){}}
+function saveLocalHistory(){try{localStorage.setItem('kg_hist_v2',JSON.stringify(uploadHistory));}catch(e){}}
+
+// ── Fetch LIVE data ──
+async function fetchLiveData(){
+  syncStatus='loading';
+  renderApp();
+  try{
+    const res=await fetch(SCRIPT_URL+'?action=read&t='+Date.now());
+    const json=await res.json();
+    if(json.success&&json.data&&json.data.length>1){
+      allData=json.data.slice(1).map(r=>({
+        BARCODE:String(r[0]||'').trim(),ITEMNAME:String(r[1]||'').trim(),
+        CATEGORY:String(r[2]||'').trim(),SIZE:String(r[3]||'').trim(),
+        UOM:String(r[4]||'PCS').trim(),MRP:parseFloat(r[5])||0,
+        SEASON:String(r[6]||'All Season').trim(),
+        MB:parseFloat(r[7])||0,RR:parseFloat(r[8])||0,GD:parseFloat(r[9])||0,
+      })).filter(d=>d.BARCODE||d.ITEMNAME);
+      syncStatus='live';
+      const now=new Date();
+      lastSyncTime=now.toLocaleDateString('en-IN')+' '+now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+    } else {syncStatus='error';}
+  }catch(e){syncStatus='error';}
+  renderApp();
+}
+
+function parseExcel(file){
+  return new Promise((res,rej)=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      try{
+        const wb=XLSX.read(e.target.result,{type:'binary'});
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+        const parsed=[];
+        for(let i=1;i<rows.length;i++){
+          const r=rows[i];
+          if(!String(r[0]||'').trim()&&!String(r[1]||'').trim()) continue;
+          parsed.push({
+            BARCODE:String(r[0]||'').trim(),ITEMNAME:String(r[1]||'').trim(),
+            CATEGORY:String(r[2]||'').trim(),SIZE:String(r[3]||'').trim(),
+            UOM:String(r[4]||'PCS').trim(),MRP:parseFloat(r[5])||0,
+            SEASON:String(r[6]||'All Season').trim(),
+            MB:parseFloat(r[7])||0,RR:parseFloat(r[8])||0,GD:parseFloat(r[9])||0,
+          });
+        }
+        res(parsed);
+      }catch(err){rej(err);}
+    };
+    reader.readAsBinaryString(file);
+  });
+}
+
+function getTabName(filename){
+  const clean=filename.replace(/\.(xlsx|xls)$/i,'');
+  const match=clean.match(/(\d{1,2})[-_]([a-zA-Z]+)/);
+  if(match){
+    const day=match[1];
+    const mon=match[2].charAt(0).toUpperCase()+match[2].slice(1).toLowerCase();
+    return day+'-'+mon;
+  }
+  const d=new Date();
+  return d.getDate()+'-'+d.toLocaleString('en-IN',{month:'short'});
+}
+
+function setProgress(pct,msg){
+  const w=document.getElementById('upload-progress');
+  const f=document.getElementById('progress-fill');
+  const m=document.getElementById('progress-msg');
+  if(w)w.style.display='block';if(f)f.style.width=pct+'%';if(m)m.textContent=msg;
+}
+function hideProgress(){const w=document.getElementById('upload-progress');if(w)w.style.display='none';}
+
+async function handleFile(file){
+  if(!file)return;
+  if(!isAdminUnlocked){showPwModal();return;}
+  const tabName=getTabName(file.name);
+  syncStatus='uploading';renderApp();
+  setProgress(10,'Excel file parse ho rahi hai...');
+  try{
+    const parsed=await parseExcel(file);
+    if(!parsed.length){alert('File mein data nahi mila!');syncStatus='live';renderApp();return;}
+    setProgress(40,parsed.length+' rows — Google Sheet mein bhej rahe hain...');
+    const rows=parsed.map(d=>[d.BARCODE,d.ITEMNAME,d.CATEGORY,d.SIZE,d.UOM,d.MRP,d.SEASON,d.MB,d.RR,d.GD]);
+    const res=await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify({tabName,rows})});
+    const result=await res.json();
+    if(result.success){
+      setProgress(90,'Sheet update ho gayi...');
+      allData=parsed;
+      const now=new Date();
+      const t=now.toLocaleDateString('en-IN')+' '+now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+      lastFileName=file.name;lastSyncTime=t;
+      uploadHistory.unshift({name:file.name,tab:tabName,time:t,rows:parsed.length});
+      uploadHistory=uploadHistory.slice(0,7);
+      saveLocalHistory();
+      syncStatus='live';filters={barcode:'',name:'',category:'',size:''};
+      setProgress(100,'✅ '+tabName+' tab bana — LIVE update hua!');
+      setTimeout(()=>{hideProgress();renderApp();},1800);
+    } else {throw new Error(result.error||'Upload failed');}
+  }catch(err){
+    hideProgress();syncStatus='error';
+    alert('Error: '+err.message);renderApp();
+  }
+}
+
+function applyFilters(data){
+  const bc=filters.barcode.trim().toLowerCase();
+  const nm=filters.name.trim().toLowerCase();
+  const cat=filters.category.trim();
+  const sz=filters.size.trim();
+  return data.filter(d=>{
+    if(bc&&!d.BARCODE.toLowerCase().includes(bc))return false;
+    if(nm&&!d.ITEMNAME.toLowerCase().includes(nm))return false;
+    if(cat&&d.CATEGORY!==cat)return false;
+    if(sz&&d.SIZE!==sz)return false;
+    return true;
+  });
+}
+function hlText(text,q){
+  if(!q||!text)return text;
+  const i=text.toLowerCase().indexOf(q.toLowerCase());
+  if(i<0)return text;
+  return text.slice(0,i)+'<span class="hl">'+text.slice(i,i+q.length)+'</span>'+text.slice(i+q.length);
+}
+function getStatus(q){return q===0?'red':q<=10?'orange':'green';}
+function getMetrics(data){
+  return{totalSKUs:data.length,inStock:data.filter(d=>d.MB+d.RR+d.GD>0).length,
+    oos:data.filter(d=>d.MB===0&&d.RR===0&&d.GD===0).length,
+    low:data.filter(d=>{const t=d.MB+d.RR+d.GD;return t>0&&t<=10;}).length,
+    totalValue:data.reduce((a,d)=>a+(d.MB+d.RR+d.GD)*d.MRP,0)};
+}
+function getAlerts(data){
+  const imb=[];const lN={GD:'KG GODOWN',MB:'KG-MB',RR:'KG-RR'};
+  data.forEach(d=>{
+    const locs={GD:d.GD,MB:d.MB,RR:d.RR};
+    const high=Object.entries(locs).filter(([,v])=>v>20);
+    const zero=Object.entries(locs).filter(([,v])=>v===0);
+    if(high.length&&zero.length)
+      high.forEach(([h,hv])=>zero.forEach(([z])=>imb.push({item:d.ITEMNAME,size:d.SIZE,cat:d.CATEGORY,highLoc:lN[h],highQty:hv,zeroLoc:lN[z],type:'imbalance'})));
+  });
+  const win=data.filter(d=>d.SEASON==='WINTER'&&(d.MB+d.RR+d.GD)>0&&(d.MB+d.RR+d.GD)<=5).slice(0,15).map(d=>({item:d.ITEMNAME,size:d.SIZE,cat:d.CATEGORY,qty:d.MB+d.RR+d.GD,type:'winter'}));
+  return[...imb.slice(0,40),...win];
+}
+function getCatSummary(data){
+  const cats={};
+  data.forEach(d=>{
+    if(!cats[d.CATEGORY])cats[d.CATEGORY]={cat:d.CATEGORY,skus:0,gd:0,mb:0,rr:0,val:0,oos:0};
+    cats[d.CATEGORY].skus++;cats[d.CATEGORY].gd+=d.GD;cats[d.CATEGORY].mb+=d.MB;cats[d.CATEGORY].rr+=d.RR;
+    cats[d.CATEGORY].val+=(d.GD+d.MB+d.RR)*d.MRP;
+    if(d.GD===0&&d.MB===0&&d.RR===0)cats[d.CATEGORY].oos++;
+  });
+  return Object.values(cats).sort((a,b)=>b.val-a.val);
+}
+function fmt(n){return n>=100000?'₹'+(n/100000).toFixed(1)+'L':n>=10000?'₹'+(n/1000).toFixed(0)+'K':'₹'+n.toLocaleString('en-IN');}
+function fmtFull(n){return '₹'+Math.round(n).toLocaleString('en-IN');}
+
+function renderApp(){
+  if(syncStatus==='loading'&&allData.length===0){
+    document.getElementById('root').innerHTML=`
+    <div class="header"><div class="logo"><div class="logo-icon">KG</div><div><div class="logo-text">KUMAR GARMENTS</div><div class="logo-sub">Stock Management Dashboard</div></div></div></div>
+    <div style="text-align:center;padding:60px"><div class="loading-spinner"></div><div style="color:var(--text3);font-size:13px">Google Sheet se live data aa raha hai...</div></div>`;
+    return;
+  }
+  const fd=applyFilters(allData);
+  const m=getMetrics(allData);
+  const alerts=getAlerts(allData);
+  const cats=getCatSummary(allData);
+  const uniqCats=[...new Set(allData.map(d=>d.CATEGORY))].filter(Boolean).sort();
+  const uniqSizes=[...new Set(allData.map(d=>d.SIZE))].filter(Boolean).sort((a,b)=>{const na=parseFloat(a),nb=parseFloat(b);return isNaN(na)||isNaN(nb)?a.localeCompare(b):na-nb;});
+  const isFiltering=filters.barcode||filters.name||filters.category||filters.size;
+
+  const syncDot=syncStatus==='live'?'<span class="sync-dot"></span> Live':syncStatus==='uploading'?'<span class="sync-dot loading"></span> Uploading...':syncStatus==='loading'?'<span class="sync-dot loading"></span> Loading...':'<span class="sync-dot error"></span> Offline';
+
+  document.getElementById('root').innerHTML=`
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">KG</div>
+    <div><div class="logo-text">KUMAR GARMENTS</div><div class="logo-sub">Stock Management Dashboard</div></div>
+  </div>
+  <div class="header-right">
+    <div class="sync-status">${syncDot}</div>
+    ${lastSyncTime?`<div class="last-updated">Last Sync<br><b style="color:var(--accent)">${lastSyncTime}</b>${lastFileName?`<br><span style="color:var(--text3)">${lastFileName}</span>`:''}</div>`:''}
+    <button class="refresh-btn" onclick="fetchLiveData()">🔄 Refresh</button>
+    ${isAdminUnlocked
+      ? `<label for="file-input" class="upload-btn">📂 Report Upload <span class="lock-badge badge-admin">Admin</span></label>
+         <input type="file" id="file-input" accept=".xlsx,.xls">
+         <button class="logout-btn" onclick="lockAdmin()" title="Lock upload">🔒 Lock</button>`
+      : `<button class="upload-btn locked" onclick="uploadBtnClick()">🔒 Report Upload <span class="lock-badge badge-view">Protected</span></button>`
+    }
+  </div>
+</div>
+
+<div id="upload-progress" class="upload-progress" style="display:none">
+  <div class="progress-title">⬆️ Google Sheet mein upload ho raha hai...</div>
+  <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-fill"></div></div>
+  <div class="progress-msg" id="progress-msg">Please wait...</div>
+</div>
+
+<div class="metrics">
+  <div class="metric"><div class="metric-label">Total SKUs</div><div class="metric-value blue">${m.totalSKUs.toLocaleString()}</div></div>
+  <div class="metric"><div class="metric-label">In Stock</div><div class="metric-value green">${m.inStock.toLocaleString()}</div></div>
+  <div class="metric"><div class="metric-label">Out of Stock</div><div class="metric-value red">${m.oos.toLocaleString()}</div></div>
+  <div class="metric"><div class="metric-label">Low Stock</div><div class="metric-value orange">${m.low.toLocaleString()}</div></div>
+  <div class="metric"><div class="metric-label">Inventory Value</div><div class="metric-value purple">${fmt(m.totalValue)}</div></div>
+</div>
+
+${syncStatus==='error'?`<div style="background:var(--red-bg);border:1px solid var(--red-b);border-radius:10px;padding:10px 16px;margin-bottom:12px;font-size:12px;color:var(--red)">
+  ⚠️ Google Sheet se connect nahi ho pa raha. <button onclick="fetchLiveData()" style="background:var(--red-b);border:none;color:var(--red);padding:3px 10px;border-radius:4px;cursor:pointer;margin-left:8px;font-size:11px">Retry</button>
+</div>`:''}
+
+${alerts.length?`<div class="alerts-panel">
+  <div class="alerts-header" onclick="toggleAlerts()">
+    <h3>⚠️ Alerts &amp; Imbalances <span style="background:var(--orange-b);color:var(--orange);font-size:11px;padding:1px 8px;border-radius:10px;margin-left:4px">${alerts.length}</span></h3>
+    <span class="chevron ${alertsOpen?'open':''}">▼</span>
+  </div>
+  ${alertsOpen?`<div class="alerts-body"><table class="alert-table">
+    <thead><tr><th>Type</th><th>Item</th><th>Category</th><th>Size</th><th>Details</th></tr></thead>
+    <tbody>${alerts.slice(0,30).map(a=>a.type==='imbalance'?`<tr>
+      <td><span class="alert-type at-imbalance">Imbalance</span></td><td>${a.item}</td><td style="color:var(--text3)">${a.cat}</td><td>${a.size||'-'}</td>
+      <td><span class="badge-loc ${a.highLoc.includes('MB')?'badge-mb':a.highLoc.includes('RR')?'badge-rr':'badge-gd'}">${a.highLoc}</span> <b style="color:var(--orange)">${a.highQty}</b> → <span class="badge-loc ${a.zeroLoc.includes('MB')?'badge-mb':a.zeroLoc.includes('RR')?'badge-rr':'badge-gd'}">${a.zeroLoc}</span> <span style="color:var(--red)">0</span></td>
+    </tr>`:`<tr>
+      <td><span class="alert-type at-winter">❄️ Winter</span></td><td>${a.item}</td><td style="color:var(--text3)">${a.cat}</td><td>${a.size||'-'}</td>
+      <td>Total: <b style="color:var(--orange)">${a.qty}</b> bache hain</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`:''}
+</div>`:''}
+
+<div class="tabs">
+  <button class="tab ${activeTab==='dashboard'?'active':''}" onclick="setTab('dashboard')">📊 Dashboard</button>
+  <button class="tab ${activeTab==='category'?'active':''}" onclick="setTab('category')">📦 Category View</button>
+  <button class="tab ${activeTab==='history'?'active':''}" onclick="setTab('history')">📁 Upload History</button>
+</div>
+
+${activeTab==='dashboard'?`
+<div class="filters">
+  <div class="filters-row">
+    <div class="filter-group"><label>🔍 Barcode</label><input type="text" placeholder="e.g. BE000546" value="${filters.barcode}" id="inp-bc" autocomplete="off" spellcheck="false"></div>
+    <div class="filter-group"><label>🏷️ Item Name</label><input type="text" placeholder="e.g. BELT, BLAZER..." value="${filters.name}" id="inp-nm" autocomplete="off"></div>
+    <div class="filter-group"><label>📦 Category</label><select id="sel-cat"><option value="">All Categories</option>${uniqCats.map(c=>`<option value="${c}"${filters.category===c?' selected':''}>${c}</option>`).join('')}</select></div>
+    <div class="filter-group"><label>📐 Size</label><select id="sel-sz"><option value="">All Sizes</option>${uniqSizes.map(s=>`<option value="${s}"${filters.size===s?' selected':''}>${s}</option>`).join('')}</select></div>
+    <div class="filter-group" style="align-self:end"><button class="clear-btn" onclick="clearFilters()">✕ Clear</button></div>
+  </div>
+  <div class="filters-bottom">
+    <span class="result-count">Showing <b>${fd.length}</b> / ${allData.length} items</span>
+    ${isFiltering&&fd.length===0?`<span style="color:var(--red);font-size:11px">⚠️ Koi match nahi mila</span>`:''}
+  </div>
+</div>
+<div class="panels-container">
+  ${[{key:'GD',cls:'panel-gd',title:'🏭 KG GODOWN'},{key:'MB',cls:'panel-mb',title:'🏪 KG-MB Shop'},{key:'RR',cls:'panel-rr',title:'🏬 KG-RR Shop'}].map(({key,cls,title})=>`
+  <div class="panel ${cls}">
+    <div class="panel-header">
+      <div class="panel-title">${title}</div>
+      <div style="display:flex;gap:8px"><span class="ps">In: <span>${fd.filter(d=>d[key]>10).length}</span></span><span class="ps">Low: <span style="color:var(--orange)">${fd.filter(d=>d[key]>0&&d[key]<=10).length}</span></span></div>
+    </div>
+    <div class="panel-body">
+      ${fd.length===0?`<div class="empty">${isFiltering?'Koi item nahi mila':'Data nahi hai — file upload karein'}</div>`:fd.map(d=>{
+        const qty=d[key];const st=getStatus(qty);
+        return `<div class="stock-item">
+          <div>
+            <div class="si-name"><span class="status-dot dot-${st}"></span>${hlText(d.ITEMNAME,filters.name)}</div>
+            <div class="si-barcode">${hlText(d.BARCODE,filters.barcode)}</div>
+            <div class="si-meta">${d.CATEGORY}${d.SIZE?' · '+d.SIZE:''} · ${d.UOM} · ${d.SEASON==='WINTER'?'❄️':'☀️'}</div>
+          </div>
+          <div class="si-right"><div class="si-qty ${st}">${qty}</div><div class="si-mrp">₹${d.MRP}</div></div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`).join('')}
+</div>
+`:activeTab==='category'?`
+<div class="cat-table-wrap">
+  <div class="cat-table-header">📦 Category-wise Stock Summary</div>
+  <div style="overflow-x:auto"><table class="cat-table">
+    <thead><tr><th>Category</th><th>SKUs</th><th>🏭 Godown</th><th>🏪 MB</th><th>🏬 RR</th><th>Total Value</th><th>OOS</th></tr></thead>
+    <tbody>${cats.map(c=>`
+      <tr onclick="toggleCat('${c.cat}')"><td class="cat-name">▸ ${c.cat}</td>
+        <td style="color:var(--accent)">${c.skus}</td><td style="color:#c084fc">${c.gd}</td>
+        <td style="color:#60a5fa">${c.mb}</td><td style="color:#4ade80">${c.rr}</td>
+        <td style="color:var(--purple)">${fmtFull(c.val)}</td>
+        <td><span style="color:${c.oos>0?'var(--red)':'var(--green)'}">${c.oos}</span></td>
+      </tr>
+      ${catExpanded[c.cat]?`<tr><td colspan="7" style="padding:0 0 0 12px;background:var(--surface2)">
+        <table class="sub-table"><thead><tr><th>Barcode</th><th>Item</th><th>Size</th><th>MRP</th><th>Godown</th><th>MB</th><th>RR</th><th>Total</th></tr></thead>
+        <tbody>${allData.filter(d=>d.CATEGORY===c.cat).map(d=>`<tr>
+          <td style="color:var(--text3);font-family:monospace">${d.BARCODE}</td><td style="color:var(--text)">${d.ITEMNAME}</td>
+          <td>${d.SIZE||'-'}</td><td>₹${d.MRP}</td>
+          <td style="color:${getStatus(d.GD)==='red'?'var(--red)':getStatus(d.GD)==='orange'?'var(--orange)':'var(--green)'}">${d.GD}</td>
+          <td style="color:${getStatus(d.MB)==='red'?'var(--red)':getStatus(d.MB)==='orange'?'var(--orange)':'var(--green)'}">${d.MB}</td>
+          <td style="color:${getStatus(d.RR)==='red'?'var(--red)':getStatus(d.RR)==='orange'?'var(--orange)':'var(--green)'}">${d.RR}</td>
+          <td style="color:var(--text)">${d.GD+d.MB+d.RR}</td>
+        </tr>`).join('')}</tbody></table>
+      </td></tr>`:''}
+    `).join('')}</tbody>
+  </table></div>
+</div>
+`:activeTab==='history'?`
+<div class="history-panel">
+  <h4>📁 Upload History (Last 7)</h4>
+  ${uploadHistory.length===0?'<div class="empty">Abhi tak koi file upload nahi ki</div>':uploadHistory.map(h=>`
+    <div class="hist-item">
+      <span class="hist-name">📄 ${h.name} <span style="color:var(--green);font-size:10px;margin-left:4px">→ ${h.tab} tab</span></span>
+      <span class="hist-time">${h.time} · ${h.rows} rows</span>
+    </div>`).join('')}
+</div>`:''}
+  `;
+
+  // Event listeners
+  const fi=document.getElementById('file-input');
+  if(fi) fi.addEventListener('change',function(e){handleFile(e.target.files[0]);this.value='';});
+  const ibc=document.getElementById('inp-bc');
+  const inm=document.getElementById('inp-nm');
+  const scat=document.getElementById('sel-cat');
+  const ssz=document.getElementById('sel-sz');
+  if(ibc) ibc.addEventListener('input',function(){filters.barcode=this.value;renderApp();setTimeout(()=>{const el=document.getElementById('inp-bc');if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}},0);});
+  if(inm) inm.addEventListener('input',function(){filters.name=this.value;renderApp();setTimeout(()=>{const el=document.getElementById('inp-nm');if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}},0);});
+  if(scat) scat.addEventListener('change',function(){filters.category=this.value;renderApp();});
+  if(ssz) ssz.addEventListener('change',function(){filters.size=this.value;renderApp();});
+}
+
+window.toggleAlerts=()=>{alertsOpen=!alertsOpen;renderApp();};
+window.setTab=t=>{activeTab=t;renderApp();};
+window.clearFilters=()=>{filters={barcode:'',name:'',category:'',size:''};renderApp();};
+window.toggleCat=cat=>{catExpanded[cat]=!catExpanded[cat];renderApp();};
+window.fetchLiveData=fetchLiveData;
+window.lockAdmin=lockAdmin;
+window.uploadBtnClick=uploadBtnClick;
+window.checkPw=checkPw;
+window.closePwModal=closePwModal;
+window.togglePwEye=togglePwEye;
+
+loadLocalHistory();
+fetchLiveData();
+</script>
+</body>
+</html>
